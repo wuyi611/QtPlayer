@@ -1,0 +1,73 @@
+project(view)
+
+
+qt_add_qml_module(${PROJECT_NAME}
+        URI view
+        VERSION 1.0
+        STATIC
+        PLUGIN_TARGET view
+        QML_FILES
+            main.qml
+            PonyBody.qml
+            PonyFooter.qml
+            MediaInfo.qml
+            interfacefunctions.js
+            RoundImage.qml
+            Wave.qml
+            AdditionalSettings.qml
+            DownSizeChange.qml
+            LeftSizeChange.qml
+            LeftDownSizeChange.qml
+            RightSizeChange.qml
+            RightDownSizeChange.qml
+            TopSizeChange.qml
+            TrackItem.qml
+            FilterItem.qml
+            LeftTopSizeChange.qml
+            RightTopSizeChange.qml
+            ButtonColorAnimation.qml
+            AnimatedButton.qml
+            SpeedMenu.qml
+            CurrentFileItem.qml
+            OutputDevice.qml
+            DBus.qml
+            FiltersWindow.qml
+            IssueWindow.qml
+        RESOURCES
+            interfacepics/additionalsettings.png
+            interfacepics/cease.png
+            interfacepics/FileCloser.png
+            interfacepics/FileList.png
+            interfacepics/FileOpener.png
+            interfacepics/FullScreen.png
+            interfacepics/Inverted.png
+            interfacepics/Last.png
+            interfacepics/Minimize.png
+            interfacepics/Next.png
+            interfacepics/NormalScreen.png
+            interfacepics/Ordered.png
+            interfacepics/Pause.png
+            interfacepics/Play.png
+            interfacepics/Random.png
+            interfacepics/Single.png
+            interfacepics/Speed1.png
+            interfacepics/Speed2.png
+            interfacepics/Speed4.png
+            interfacepics/Speed8.png
+            interfacepics/Volumn0.png
+            interfacepics/Volumn1.png
+            interfacepics/Volumn2.png
+            interfacepics/Volumn3.png
+            interfacepics/defaultlogo.png
+            interfacepics/mainWindowClose.png
+            interfacepics/mainWindowReduction.png
+            interfacepics/mainWindowMinimize.png
+            interfacepics/ponyback.png
+            interfacepics/mainWindowMaximize.png
+            img/pexels-flora-westbrook-2574614.jpg
+            img/pexels-izabella-arvai-953475.jpg
+            shader/roundImage.frag
+            shader/roundImage.frag.qsb
+            shader/roundImage.vert
+            shader/roundImage.vert.qsb
+        )

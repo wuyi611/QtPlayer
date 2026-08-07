@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where qmake *)",
+      "Bash(where qmake6 *)",
+      "Read(//c//**)",
+      "Read(//e/Qt/**)",
+      "Bash(where ffmpeg *)"
+    ]
+  }
+}
