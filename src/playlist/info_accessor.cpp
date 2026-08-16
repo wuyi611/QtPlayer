@@ -139,7 +139,7 @@ QString infoAccessor::getInfo(QString filename, PlayListItem &res) {
                               linesize);
                     sws_freeContext(sws_ctx);
 
-                    avcodec_close(pCodecCtx);
+                    // avcodec_free_context 内部已关闭解码器, 无需再调用已废弃的 avcodec_close
                     avcodec_free_context(&pCodecCtx);
                     preview_done = true;
                     break;

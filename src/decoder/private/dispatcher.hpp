@@ -480,9 +480,13 @@ private slots:
                     m_audioDecoder->accept(packet, interrupt);
                 }
             } else if (ret == ERROR_EOF) {
-                // 读到文件末尾: 以空指针标记 EOF 通知消费线程, 结束循环
-                videoQueue->push(nullptr);
-                audioQueue->push(nullptr);
+                // 读到文件末尾: 必须先冲刷解码器, 把其内部缓冲的最后几帧排空
+                // (B 帧重排 / 解码器 delay 导致的延迟帧), 否则它们会随 break 被直接丢弃,
+                // 造成播放结束前丢失最后几帧.
+                // accept(nullptr) 内部触发 avcodec_send_packet(ctx, nullptr) 排空,
+                // 解码器在 receive_frame 返回 AVERROR_EOF 时自行向队列 push(nullptr) 哨兵.
+                videoDecoder->accept(nullptr, interrupt);
+                m_audioDecoder->accept(nullptr, interrupt);
                 av_packet_unref(packet);
                 break;
             } else {

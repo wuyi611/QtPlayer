@@ -142,7 +142,7 @@ public:
  */
 class DecoderContext {
 public:
-    AVCodec *codec = nullptr;           ///< 查找到的解码器 (FFmpeg 全局单例, 不归本类释放)
+    const AVCodec *codec = nullptr;     ///< 查找到的解码器 (FFmpeg 5.0+ 为 const 不透明类型, 全局单例, 不归本类释放)
     AVStream *stream = nullptr;         ///< 关联的媒体流 (属于 fmtCtx, 不归本类释放)
     AVCodecContext *codecCtx = nullptr; ///< 解码上下文 (本类负责释放)
     AVFrame *frameBuf = nullptr;        ///< 解码帧缓冲 (本类负责释放; 每解出一帧后需重新分配)
@@ -152,24 +152,29 @@ public:
      * @throw std::runtime_error 解码器查找 / 上下文分配 / 参数拷贝 / 打开 / 帧缓冲分配任一失败时抛出
      */
     DecoderContext(AVStream *vs): stream(vs) {
-        auto *videoCodecPara = stream->codecpar;
-        // ① 按流中记录的 codec_id 查找对应解码器
-        if (!(codec = const_cast<AVCodec *>(avcodec_find_decoder(videoCodecPara->codec_id)))) {
-            throw std::runtime_error("Cannot find valid video decode codec.");
+        const AVCodecParameters *par = stream->codecpar;
+        // ① 按流中记录的 codec_id 查找对应解码器 (FFmpeg 5.0+ 返回 const AVCodec*, 无需 const_cast)
+        if (!(codec = avcodec_find_decoder(par->codec_id))) {
+            throw std::runtime_error("Cannot find valid decoder.");
         }
         // ② 分配解码上下文
         if (!(codecCtx = avcodec_alloc_context3(codec))) {
-            throw std::runtime_error("Cannot find valid video decode codec context.");
+            throw std::runtime_error("Cannot alloc codec context.");
         }
         // ③ 把流的编解码参数拷贝进解码上下文
-        if (avcodec_parameters_to_context(codecCtx, videoCodecPara) < 0) {
-            throw std::runtime_error("Cannot initialize videoCodecCtx.");
+        if (avcodec_parameters_to_context(codecCtx, par) < 0) {
+            throw std::runtime_error("Cannot initialize codec context.");
         }
-        // ④ 打开解码器
+        // ④ 现代推荐配置:
+        //    thread_count = 0  → 自动帧级多线程解码 (高分辨率视频吞吐提升);
+        //    pkt_timebase     → 时间基对齐流, 保证解码器产出的 pts/dts 换算准确
+        codecCtx->thread_count = 0;
+        codecCtx->pkt_timebase  = stream->time_base;
+        // ⑤ 打开解码器 (可传 AVDictionary 传入 threads / lowres 等编解码器选项)
         if (avcodec_open2(codecCtx, codec, nullptr) < 0) {
             throw std::runtime_error("Cannot open codec.");
         }
-        // ⑤ 分配一个帧缓冲, 供 avcodec_receive_frame 填充解码结果
+        // ⑥ 分配一个帧缓冲, 供 avcodec_receive_frame 填充解码结果
         if (!(frameBuf = av_frame_alloc())) {
             throw std::runtime_error("Cannot alloc frame buf.");
         }
@@ -178,7 +183,8 @@ public:
     /// 析构 — 释放帧缓冲与解码上下文
     ~DecoderContext() {
         if (frameBuf) { av_frame_free(&frameBuf); }
-        if (codecCtx) { avcodec_close(codecCtx); }
+        // 现代: avcodec_free_context 内部已关闭解码器并释放上下文;
+        // avcodec_close 自 FFmpeg 5.0 起废弃, 不应再单独调用
         if (codecCtx) { avcodec_free_context(&codecCtx); }
     }
 
