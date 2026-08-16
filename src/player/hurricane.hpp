@@ -37,7 +37,7 @@ public:
     enum HurricaneState {
         CLOSING,       ///< 正在关闭当前文件, 这是一个瞬时状态
         LOADING,       ///< 正在加载, 这是一个瞬时状态
-        INVALID,       ///< 文件无效
+        INVALID,       ///< 文件无效, 播放器刚创建，从未打开过任何文件
         PRE_PLAY,      ///< 准备播放, 这是一个瞬时状态, 将会很快转为 @code HurricaneState::PLAYING
         PLAYING,       ///< 正在播放
         PRE_PAUSE,     ///< 请求暂停, 这是一个瞬时状态
@@ -71,11 +71,13 @@ public:
         frameController = new FrameController(this);
 
         connect(this, &Hurricane::signalStart, frameController, &FrameController::start);
+        // 已读
         connect(this, &Hurricane::signalPause, frameController, &FrameController::pause);
-
+        // 已读
         connect(this, &Hurricane::signalOpenFile, frameController, &FrameController::openFile);
-
+        // 已读
         connect(frameController, &FrameController::openFileResult, this, &Hurricane::slotOpenFileResult);
+        // 已读
         connect(this, &Hurricane::signalClose, frameController, &FrameController::close);
         connect(frameController, &FrameController::setPicture, this, &Hurricane::setVideoFrame);
 
@@ -192,12 +194,16 @@ public slots:
         if (state == HurricaneState::CLOSING || state == HurricaneState::INVALID) {
             if (state == HurricaneState::CLOSING) {
                 // wait for the operation to complete
+                // ① 等 close 信号落地
                 QCoreApplication::processEvents();
             }
+            // ② 进入加载态
             state = HurricaneState::LOADING;
             emit stateChanged();
+            // ③ 重置倒放标志
             backwardStatus = false;
             emit backwardStatusChanged();
+            // ④ 通知后端打开新文件
             emit signalOpenFile(QUrl(url).toLocalFile(), QPrivateSignal());
             qDebug() << "Open file:" << url;
         }

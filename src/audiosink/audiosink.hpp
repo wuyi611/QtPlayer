@@ -327,6 +327,7 @@ public:
         std::lock_guard lock(paStreamLock);
         qDebug() << "Audio stateStop.";
         if (m_state == PlaybackState::PLAYING || m_state == PlaybackState::PAUSED) {
+            // 立即终止音频流
             Pa_AbortStream(m_stream);
             m_state = PlaybackState::STOPPED;
         } else {
@@ -409,6 +410,7 @@ public:
             qWarning() << "clear make no effect when state != STOPPED.";
         }
         // 需要保证此刻没有读写操作
+        // 丢弃缓冲区内所有待播放的音频数据
         PaUtil_FlushRingBuffer(&m_ringBuffer);
         return 0;
     }
@@ -437,7 +439,9 @@ public:
             qWarning() << "Trying set start point to NaN";
         }
         if (m_state == PlaybackState::STOPPED) {
+            // 设置起始时间戳
             m_startPoint = t;
+            // 清零已写入字节计数
             m_dataWritten = 0;
         } else {
             qWarning() << "setTimeBase make no effect when state != STOPPED";

@@ -254,13 +254,16 @@ public:
     }
 
     /**
-     * 尽快暂停处理, 这个方法将会阻塞直到当前工作停止. 这个方法不会丢失数据.
+     * 尽快暂停音视频播放, 这个方法将会阻塞直到当前工作停止. 这个方法不会丢失数据.
      */
     void pause() {
         std::unique_lock cond_lock(m_interruptMutex);
+        // ① 通知 worker：该停了
         m_isInterrupt = true;
+        // ② 如果 syncTo 正在 sleep，唤醒它
         m_interruptCond.notify_all();
         cond_lock.unlock();
+        // ③ 这里阻塞，等 onWork 放锁
         std::unique_lock lock(m_workMutex);
     }
 
@@ -268,13 +271,20 @@ public:
      * 立即停止, 清空缓冲区的数据.
      */
     void stop() {
+        // 第一步：中断播放循环，等它退出（和 pause 完全相同）
         std::unique_lock cond_lock(m_interruptMutex);
         m_isInterrupt = true;
         m_interruptCond.notify_all();
         cond_lock.unlock();
+        // 阻塞到 onWork() 释放锁
         std::unique_lock lock(m_workMutex); // make sure stop
+
+        // 第二步：彻底清理（pause 没有的部分）
+        // 停掉音频输出设备（m_audioSink->stop()），关闭音频流
         emit stopWork(QPrivateSignal());
+        // 把音频起始时间戳归零
         emit setAudioStartPoint(0.0, QPrivateSignal());
+        // 清空环形缓冲区里残留的音频帧
         emit clearRingBuffer(QPrivateSignal());
     }
 
