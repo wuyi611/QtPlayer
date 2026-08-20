@@ -75,7 +75,7 @@ protected:
      * @param data 更新数据
      * @return 当前渲染节点 m_renderer
      *
-     * 每次 QQuickItem::update() 被调用后，渲染线程会回调此方法。
+     * 每次 QQuickItem::update() 被调用后，在数据同步阶段渲染线程会回调此方法。
      * 直接返回 m_renderer，无需重建节点。
      */
     QSGNode *updatePaintNode(QSGNode *node, UpdatePaintNodeData *data) override {
@@ -111,7 +111,9 @@ public:
             qDebug() << "Window Size Changed:" << static_cast<void *>(win) << ".";
             if (win) {
                 // DirectConnection: 在渲染线程直接调用，避免跨线程排队
+                // 已读
                 connect(this->window(), &QQuickWindow::beforeSynchronizing, m_renderer, &FireworksRenderer::sync, Qt::DirectConnection);
+                // 已读
                 connect(this->window(), &QQuickWindow::beforeRendering, m_renderer, &FireworksRenderer::init, Qt::DirectConnection);
                 win->setColor(Qt::black);
             } else {
@@ -211,6 +213,7 @@ public slots:
                 m_frameHeight = pic.getHeight();
                 // frameRate 在此处表示帧宽高比，用于渲染时的比例计算
                 m_frameRate = static_cast<double>(m_frameHeight) / static_cast<double>(m_frameWidth);
+                // hurricane发出的frameSizeChanged信号什么也不会触发
                 emit frameSizeChanged();
             }
         }

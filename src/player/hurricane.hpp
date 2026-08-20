@@ -79,6 +79,7 @@ public:
         connect(frameController, &FrameController::openFileResult, this, &Hurricane::slotOpenFileResult);
         // 已读
         connect(this, &Hurricane::signalClose, frameController, &FrameController::close);
+        // 已读
         connect(frameController, &FrameController::setPicture, this, &Hurricane::setVideoFrame);
 
         connect(this, &Hurricane::signalSeek, frameController, &FrameController::seek);

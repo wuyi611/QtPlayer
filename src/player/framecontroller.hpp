@@ -90,6 +90,7 @@ private slots:
     void initOnThread() {
         this->m_demuxer = new Demuxer{this};
         this->m_playback = new Playback{m_demuxer, this};
+        // 已读
         connect(m_playback, &Playback::setPicture, this, &FrameController::setPicture, Qt::DirectConnection);
         connect(m_playback, &Playback::stateChanged, this, &FrameController::playbackStateChanged,
                 Qt::DirectConnection);
@@ -97,13 +98,21 @@ private slots:
         connect(this, &FrameController::signalDecoderOpenFile, m_demuxer, &Demuxer::openFile);
         // WARNING: BLOCKING_QUEUED_CONNECTION — 必须等待 seek 完成!
         connect(this, &FrameController::signalDecoderSeek, m_demuxer, &Demuxer::seek, Qt::BlockingQueuedConnection);
+        // 已读
         // 文件打开完成后的初始化: 设置音频格式 → 启动解码器 → 清空缓冲 → 显示首帧
         connect(m_demuxer, &Demuxer::openFileResult, this, [this](PonyPlayer::OpenFileResultType result) {
             if (result != PonyPlayer::OpenFileResultType::FAILED) {
+                // 用源文件的采样率/声道数打开 PortAudio 流，并把位深强制为 Int16，设备会协商出支持的值
                 m_playback->setDesiredFormat(m_demuxer->getInputFormat());
+                // 让重采样器以设备实际支持的值格式为目标输出，迁就设备实际支持值
                 m_demuxer->setOutputFormat(m_playback->getDeviceFormat());
+                // ② 启动解码器，开始填充帧缓冲
+                //    → m_worker->stateResume()  唤醒解码器线程
                 m_demuxer->start();
+                // ③ 清空播放缓存中的旧帧
+                //    → emit clearCacheVideoFrame()  清空 videoFrame
                 m_playback->clearCacheFrame();
+                // ④ 显示第一帧
                 m_playback->showFrame();
             }
             emit openFileResult(result);
