@@ -59,67 +59,81 @@ public:
 
 
 private:
-    bool backwardStatus = false;
+    bool backwardStatus = false;                          // 是否处于倒放状态
 private:
-    HurricaneState state = HurricaneState::INVALID;
+    HurricaneState state = HurricaneState::INVALID;       // 播放器当前状态
 private:
-    FrameController *frameController;
-    int track = -1;
-    double speed = 1.0;
+    FrameController *frameController;                     // 帧控制器（后台协调者，FRAME 线程）
+    int track = -1;                                       // 当前选中的音轨索引（-1 表示未选择）
+    double speed = 1.0;                                   // 当前播放速度倍率
+
 public:
+    /**
+     * @brief 构造函数：创建并连接到帧控制器
+     *
+     * 初始化 frameController 并把本类（前端）的控制信号连接到它的槽，
+     * 同时把它的结果/状态信号连接回到本类的槽，完成双向通信。
+     */
     explicit Hurricane(QQuickItem *parent = nullptr) : Fireworks(parent) {
         frameController = new FrameController(this);
 
-        connect(this, &Hurricane::signalStart, frameController, &FrameController::start);
-        // 已读
-        connect(this, &Hurricane::signalPause, frameController, &FrameController::pause);
-        // 已读
-        connect(this, &Hurricane::signalOpenFile, frameController, &FrameController::openFile);
-        // 已读
-        connect(frameController, &FrameController::openFileResult, this, &Hurricane::slotOpenFileResult);
-        // 已读
-        connect(this, &Hurricane::signalClose, frameController, &FrameController::close);
-        // 已读
-        connect(frameController, &FrameController::setPicture, this, &Hurricane::setVideoFrame);
+        // ---- Hurricane(前端) → FrameController(后端) 的控制信号 ----
+        connect(this, &Hurricane::signalStart, frameController, &FrameController::start);        // 开始播放
+        connect(this, &Hurricane::signalPause, frameController, &FrameController::pause);        // 暂停
+        connect(this, &Hurricane::signalOpenFile, frameController, &FrameController::openFile);  // 打开文件
+        connect(this, &Hurricane::signalClose, frameController, &FrameController::close);        // 关闭文件
+        connect(this, &Hurricane::signalSeek, frameController, &FrameController::seek);          // 跳转进度
 
-        connect(this, &Hurricane::signalSeek, frameController, &FrameController::seek);
+        // ---- FrameController(后端) → Hurricane(前端) 的结果/状态信号 ----
+        // 已读
+        connect(frameController, &FrameController::openFileResult, this, &Hurricane::slotOpenFileResult); // 打开文件结果
+        connect(frameController, &FrameController::setPicture, this, &Hurricane::setVideoFrame);         // 新的视频帧
         connect(frameController, &FrameController::signalPositionChangedBySeek, this,
-                &Hurricane::slotPositionChangedBySeek);
-
-        connect(frameController, &FrameController::playbackStateChanged, this, &Hurricane::slotPlaybackStateChanged);
-
+                &Hurricane::slotPositionChangedBySeek);                                                    // seek 后进度已变
+        // 已读
+        connect(frameController, &FrameController::playbackStateChanged, this, &Hurricane::slotPlaybackStateChanged); // 播放/暂停状态变化
+        // 已读
         connect(this, &Hurricane::stateChanged, [this] {
             qDebug() << "State Changed to" << QVariant::fromValue(state).toString();
         });
 
         connect(frameController, &FrameController::signalAudioOutputDevicesChanged, this,
-                &Hurricane::audioOutputDeviceChanged);
-        connect(frameController, &FrameController::signalDeviceSwitched, this, &Hurricane::currentOutputDeviceChanged);
-        connect(frameController, &FrameController::resourcesEnd, this, &Hurricane::resourcesEnd);
+                &Hurricane::audioOutputDeviceChanged);   // 音频输出设备列表变化
+        connect(frameController, &FrameController::signalDeviceSwitched, this, &Hurricane::currentOutputDeviceChanged); // 当前设备已切换
+        connect(frameController, &FrameController::resourcesEnd, this, &Hurricane::resourcesEnd);   // 播放资源耗尽
         emit signalPlayerInitializing(QPrivateSignal());
 #ifdef DEBUG_FLAG_AUTO_OPEN
+        // 调试：启动时自动打开一个固定测试文件
         openFile(QUrl::fromLocalFile(QDir::homePath().append(u"/581518754-1-208.mp4"_qs)).url());
 #endif
     }
 
+    /**
+     * @brief 析构函数：安全退出并销毁帧控制器
+     */
     virtual ~Hurricane() override {
-        frameController->pause();
-        frameController->deleteLater();
+        frameController->pause();        // 先暂停后台播放
+        frameController->deleteLater();  // 交给事件循环销毁，避免在栈上直接 delete 造成线程问题
         qWarning() << "Destroy HurricanePlayer.";
     }
 
+    // 获取当前播放器状态
     HurricaneState getState() { return state; }
 
+    // 获取当前选中的音轨索引
     int getTrack() {
         return track;
     }
 
+    // 获取当前播放速度倍率
     double getSpeed() {
         return speed;
     }
 
+    // 是否处于倒放状态
     bool isBackward() { return backwardStatus; }
 
+    // 获取音频输出设备列表
     QStringList getAudioDeviceList() { return frameController->getAudioDeviceList(); }
 
 
@@ -143,36 +157,26 @@ signals:
      */
     void positionChangedBySeek();
 
-    void audioOutputDeviceChanged();
-
-    void backwardStatusChanged();
-
-    void trackChanged();
-
-    void currentOutputDeviceChanged();
-
-    void pitchChanged();
-
-    void speedChanged();
-
-    void resourcesEnd();
+    void audioOutputDeviceChanged();     // 音频输出设备列表发生变化（可热插拔）
+    void backwardStatusChanged();        // 倒放状态发生变化
+    void trackChanged();                 // 当前音轨发生变化
+    void currentOutputDeviceChanged();   // 当前音频输出设备发生变化
+    void pitchChanged();                 // 音调发生变化
+    void speedChanged();                 // 播放速度发生变化
+    void resourcesEnd();                 // 播放资源耗尽（播完/到达边界）
 
 Q_SIGNALS:
 
     // 下面这些方法用于与 VideoPlayWorker 通信
     // 约定两者通信的方法信号以 signal 开头, 槽函数以 slot 开头
     // 约定信号只能由所属的类的实例 emit
-    void signalPlayerInitializing(QPrivateSignal);
+    void signalPlayerInitializing(QPrivateSignal);  // 播放器初始化（发给 FrameController）
 
-    void signalStart(QPrivateSignal);
-
-    void signalPause(QPrivateSignal);
-
-    void signalClose(QPrivateSignal);
-
-    void signalOpenFile(const QString &path, QPrivateSignal);
-
-    void signalSeek(qreal pos, QPrivateSignal);
+    void signalStart(QPrivateSignal);               // 请求开始播放
+    void signalPause(QPrivateSignal);               // 请求暂停
+    void signalClose(QPrivateSignal);               // 请求关闭当前文件
+    void signalOpenFile(const QString &path, QPrivateSignal);  // 请求打开指定文件
+    void signalSeek(qreal pos, QPrivateSignal);     // 请求跳转到指定进度
 
 
 public slots:
@@ -350,6 +354,10 @@ public slots:
         qDebug() << "HurricanePlayer: Seek" << pos;
     }
 
+    /**
+     * @brief 获取可用的音轨列表
+     * @return 音轨名列表（轨道名称组成的字符串列表）
+     */
     Q_INVOKABLE QStringList getTracks() {
         if (state == LOADING || state == INVALID) {
             qWarning() << "Get tracks when" << state;
@@ -357,6 +365,10 @@ public slots:
         return frameController->getTracks();
     }
 
+    /**
+     * @brief 切换音轨，需要状态为 PAUSED/PRE_PAUSE/PLAYING/PRE_PLAY
+     * @param i 目标音轨索引
+     */
     Q_INVOKABLE void setTrack(int i) {
         bool playing = false;
         switch (state) {
@@ -372,10 +384,10 @@ public slots:
         }
         state = PRE_PAUSE;
         emit stateChanged();
-        frameController->setTrack(i);
+        frameController->setTrack(i);   // 通知后端切换音轨
         track = i;
         emit trackChanged();
-        if (playing) {
+        if (playing) {                  // 若暂停前在播放，则重新开始
             emit signalStart(QPrivateSignal());
         }
 
@@ -383,6 +395,9 @@ public slots:
     }
 
 
+    /**
+     * @brief 切换到正放方向，需要状态为 PAUSED/PRE_PAUSE/PLAYING/PRE_PLAY
+     */
     Q_INVOKABLE void forward() {
         bool playing = false;
         switch (state) {
@@ -400,13 +415,16 @@ public slots:
         emit stateChanged();
         backwardStatus = false;
         emit backwardStatusChanged();
-        frameController->forward();
+        frameController->forward();     // 通知后端正放
         if (playing) {
             emit signalStart(QPrivateSignal());
         }
         qDebug() << "forward";
     }
 
+    /**
+     * @brief 切换到倒放方向，需要状态为 PAUSED/PRE_PAUSE/PLAYING/PRE_PLAY
+     */
     Q_INVOKABLE void backward() {
         bool playing = false;
         switch (state) {
@@ -424,13 +442,16 @@ public slots:
         emit stateChanged();
         backwardStatus = true;
         emit backwardStatusChanged();
-        frameController->backward();
+        frameController->backward();    // 通知后端倒放
         if (playing) {
             emit signalStart(QPrivateSignal());
         }
         qDebug() << "backward";
     }
 
+    /**
+     * @brief 在正放/倒放之间切换（取反当前方向）
+     */
     Q_INVOKABLE void toggleBackward() {
         if (isBackward()) {
             forward();
@@ -439,10 +460,17 @@ public slots:
         }
     }
 
+    /**
+     * @brief 判断当前打开的文件是否含有视频流
+     */
     Q_INVOKABLE bool hasVideo() {
         return frameController != nullptr && frameController->hasVideo();
     }
 
+    /**
+     * @brief 获取当前音调
+     * @return 音调值
+     */
     Q_INVOKABLE qreal getPitch() {
         return frameController ? frameController->getPitch() : 1.0;
     }
@@ -450,8 +478,10 @@ public slots:
 
 private slots:
 
+    // seek 完成后：把内部信号转发成对外开放的 positionChangedBySeek()
     void slotPositionChangedBySeek() { emit positionChangedBySeek(); }
 
+    // 后端播放状态回调：据 isPlaying 更新稳定状态并发出 stateChanged
     void slotPlaybackStateChanged(bool isPlaying) {
         if (isPlaying) {
             state = PLAYING;
@@ -461,6 +491,7 @@ private slots:
         emit stateChanged();
     };
 
+    // 打开文件结果回调：成功则进入 PAUSED 并默认选第 0 轨，失败则回到 INVALID
     void slotOpenFileResult(PonyPlayer::OpenFileResultType result) {
         if (result != PonyPlayer::OpenFileResultType::FAILED) {
             state = PAUSED;

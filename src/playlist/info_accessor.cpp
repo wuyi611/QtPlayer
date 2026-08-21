@@ -6,30 +6,42 @@
 #include <QImage>
 
 /*
- * 保存帧图像
+ * 保存帧图像到 PONYPATH/preview 目录
+ * @param abspath 源视频的绝对路径（用于生成同名文件名）
+ * @param image   要保存的预览帧图像
+ * @return 保存后的图片文件 URL 字符串
  */
 QString saveImage(const QString& abspath, QImage &image) {
     QFileInfo fi(abspath);
-    QString bn = fi.baseName();
+    QString bn = fi.baseName();   // 取文件名（不含扩展名）作为预览图文件名
     qDebug() << "环境变量:" << qEnvironmentVariable("PONYPATH");
     QString home = qEnvironmentVariable("PONYPATH");
 //    QString des = QDir::currentPath() + "/preview/" + bn + ".png";
-    QString des = home + "/preview/" + bn + ".png";
+    QString des = home + "/preview/" + bn + ".png";   // 预览图保存路径
     image.save(des);
     QUrl url = QUrl::fromLocalFile(des);
     return url.toString();
 }
 
+/*
+ * 解析媒体文件元信息并写入 res，同时提取视频首帧作为预览图
+ * @param filename 媒体文件路径（可能为 file:// URL）
+ * @param res      出参：解析结果
+ * @return 预览图 URL；失败时返回空字符串
+ */
 QString infoAccessor::getInfo(QString filename, PlayListItem &res) {
     QString des = "";
     AVFormatContext *input_AVFormat_context_ = avformat_alloc_context();
+    // 将 file:// URL 转成本地文件路径
     QUrl url(filename);
     filename = url.toLocalFile();
+    // 打开输入文件
     if (avformat_open_input(&input_AVFormat_context_, filename.toStdString().c_str(), nullptr, nullptr) < 0) {
         qDebug() << "file open reportErrorMain!";
         return "";
     }
 
+    // 读取媒体流信息
     if (avformat_find_stream_info(input_AVFormat_context_, nullptr) < 0) {
         qDebug() << "reportErrorMain";
         return "";
@@ -181,14 +193,19 @@ QString infoAccessor::getInfo(QString filename, PlayListItem &res) {
                 return "";
             }
 
+            // 记录音频编码格式
             res.setAudioFormat(avcodec_get_name(avctx_audio->codec_id));
 
+            // 记录音频平均码率（换算为 kbps）
             res.setAudioAverageBitRate(static_cast<int>(codec_par->bit_rate / 1000));
 
+            // 记录音频通道数
             res.setChannelNumbers(codec_par->channels);
 
+            // 记录音频采样率
             res.setSampleRate(codec_par->sample_rate);
 
+            // 估算音频流大小（码率 × 时长 / 8 / 1024）
             res.setAudioSize(static_cast<float>(res.getAudioAverageBitRate() * secs / (8.0 * 1024)));
         }
     }

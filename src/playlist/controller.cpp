@@ -2,6 +2,12 @@
 // Created by 彭郑威 on 2022/4/29.
 //
 
+// ============================================================
+// controller.cpp —— 媒体库前端控制器实现
+// 负责 Controller 的构造/析构（线程管理、信号-槽连接），
+// 以及对外暴露给 QML 的几个 Q_INVOKABLE 方法。
+// ============================================================
+
 #include "controller.h"
 
 /**
@@ -32,8 +38,10 @@ Controller::Controller(QObject *parent) : QObject(parent)
     // 已读
     // 提取并处理所有媒体库条目
     connect(this, SIGNAL(extractRequirement()), listOPer, SLOT(extractAndProcess()));
+    // 已读
     // 删除指定路径的媒体条目
     connect(this, SIGNAL(removeRequirement(QString)), listOPer, SLOT(remove(QString)));
+    // 已读
     // 获取指定路径的媒体详细信息
     connect(this, SIGNAL(getInfoRequirement(QString)), listOPer, SLOT(getInfo(QString)));
 
@@ -47,8 +55,10 @@ Controller::Controller(QObject *parent) : QObject(parent)
     connect(listOPer, SIGNAL(removeDone(int)), this, SLOT(getRemoveRst(int)));
     // 搜索操作完成，返回搜索结果
     connect(listOPer, SIGNAL(searchDone(PlayListItem*)), this, SLOT(getSearchRst(PlayListItem*)));
+    // 已读
     // 提取操作完成，返回媒体库中所有条目的简化列表
     connect(listOPer, SIGNAL(extractDone(QList<simpleListItem*>)), this, SLOT(getExtractRst(QList<simpleListItem*>)));
+    // 已读
     // 获取详细信息操作完成
     connect(listOPer, SIGNAL(getInfoDone(PlayListItem*)), this, SLOT(getInfoRst(PlayListItem*)));
 

@@ -533,7 +533,9 @@ Rectangle {
         Controller {
             id: mediaLibController
 
+            // 列表加载完成就会触发
             onFinishExtractItems: {
+                // 获取简易模型列表
                 var items = mediaLibController.getSimpleListItemList()
 
                 for(var i=0;i<items.length;i++) {
@@ -542,7 +544,7 @@ Rectangle {
                 "iconPath": items[i].getIconPath()==="" ? "interfacepics/defaultlogo": items[i].getIconPath()})
             }
         }
-
+        // 双击item会触发
         onFinishGetInfo: {
             var infoitem = mediaLibController.getListItemInfo()
             mediainfowindow.infomodel.clear()
@@ -616,6 +618,7 @@ Rectangle {
                     Text {
                         id: filaname
                         text: fileName
+                        // 把省略号 "…" 放在中间，保留开头和结尾
                         elide: Text.ElideMiddle
                         font.bold: true
                         anchors.left: preview.right
@@ -636,15 +639,17 @@ Rectangle {
                     // 点击播放 / 双击查看媒体信息
                     MouseArea {
                         anchors.fill: parent
+                        // 鼠标悬停时的光标形状为手型指针
                         cursorShape: "PointingHandCursor"
 
+                        // 单击
                         onClicked: {
                             listview.currentIndex = index;
                             console.log("[P]selected file: "+listModel.get(index).filePath)
                             mainWindow.openFile(listModel.get(index).filePath);
                             wave.waveArea.tryLoadLyrics(listModel.get(index).filePath);
                         }
-
+                        // 双击
                         onDoubleClicked: {
                             mediaLibController.sendGetInfoRequirement(listModel.get(index).filePath)
                             mediainfowindow.show()
@@ -669,6 +674,7 @@ Rectangle {
                         onClicked: {
                             console.log("Image")
                             mediaLibController.sendRemoveRequirement(listModel.get(index).filePath, listModel.get(index).iconPath)
+                            // 删除这一条
                             listModel.remove(index, 1)
                         }
                     }

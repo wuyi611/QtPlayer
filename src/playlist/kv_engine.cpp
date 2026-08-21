@@ -1,3 +1,8 @@
+// ============================================================
+// kv_engine.cpp —— 键值存取引擎的实现
+// 实现 PonyKVConnect（底层 SQLite 交互）与 PonyKVList<T>（类型化增删查封装）。
+// ============================================================
+
 #include "kv_engine.h"
 #include "playlist.h"
 #include "ponyplayer.h"
@@ -130,20 +135,24 @@ QList<QObject *> PonyKVConnect::retrieveData(const QString &tableName, const QSt
     return ret;
 }
 
+// 取出表中全部记录，并动态转换为指定类型 T 的指针列表
 template<typename T>
 QList<T *> PonyKVConnect::retrieveDataByClass(const QString &tableName, const QString &className) {
     QList<T *> ret;
 
+    // 通过类名反射获取元对象，用于创建实例
     const QMetaObject *metaObj = QMetaType::fromName(className.toUtf8()).metaObject();
 
     QSqlQuery query("SELECT * FROM `" + tableName + "`", db);
 
     while (query.next()) {
+        // 按反射创建对象实例，并逐列回填属性
         QObject *obj = metaObj->newInstance();
         for (int i = metaObj->propertyOffset(); i < metaObj->propertyCount(); ++i) {
             obj->setProperty(query.record().fieldName(i - metaObj->propertyOffset()).toUtf8(),
                              query.record().value(i - metaObj->propertyOffset()));
         }
+        // 转成目标类型后放入列表
         ret.push_back(dynamic_cast<T *>(obj));
     }
 
@@ -155,21 +164,26 @@ QList<T *> PonyKVConnect::retrieveDataByClass(const QString &tableName, const QS
  * @tableName: 表名
  * @object: 被移除对象
  */
+// 按对象的主键 _uuid_ 从表中删除对应记录
 void PonyKVConnect::remove(const QString &tableName, const QObject *object) {
     QString sql = "DELETE FROM `" + tableName + "` WHERE _uuid_ = ";
     sql += object->property("_uuid_").value<QString>();
     db.exec(sql);
 }
 
+// 按指定键值对删除记录，并同步删除对应的预览图文件
 void PonyKVConnect::removeByKV(const QString &tableName, const QString &key, const QString &value) {
+    // 先查询到该条目，取出其预览图路径
     auto* pli = search<PlayListItem>(tableName,"PlayListItem",key, value);
     QUrl url(pli->getIconPath());
     QString iconPath = url.toLocalFile();
     QFileInfo FileInfo(iconPath);
+    // 若预览图文件存在，则一并删除，避免残留
     if (FileInfo.isFile()) {
         QFile::remove(iconPath);
         qDebug()<<"delete iconPath:"<<iconPath;
     }
+    // 使用参数化查询删除匹配的记录，防止 SQL 注入
     QSqlQuery query(db);
     query.prepare("DELETE FROM `" + tableName + "` WHERE " + key + "= :value");
     query.bindValue(0, value);
@@ -201,39 +215,47 @@ T* PonyKVConnect::search(const QString &tableName, const QString &className, con
     return dynamic_cast<T *>(obj);
 }
 
+// PonyKVList<T> 构造函数：建立连接，必要时建表，并加载已有数据到缓存
 template<typename T>
 PonyKVList<T>::PonyKVList(QString _dbName, QString _tableName, QString _className) :engine(_dbName),
                                                                                     dbName(std::move(_dbName)),
                                                                                     tableName(
                                                                                             std::move(_tableName)),
                                                                                     className(std::move(_className)) {
+    // 若表不存在则根据类反射动态建表
     if (!engine.hasTable(tableName)) {
         engine.createTableFrom(className, tableName);
     }
+    // 载入已有数据作为内存缓存
     data = engine.retrieveDataByClass<T>(tableName, className);
 }
 
+// 插入一条记录：写入数据库并同步加入内存缓存
 template<typename T>
 void PonyKVList<T>::insert(T *item) {
     data.push_back(item);
     engine.insert(tableName, item);
 }
 
+// 按指定键值删除记录
 template<typename T>
 void PonyKVList<T>::remove(const QString& key, const QString& value) {
     engine.removeByKV(tableName, key, value);
 }
 
+// 取出内存缓存中的全部记录
 template<typename T>
 QList<T*> PonyKVList<T>::extract() {
     // data = engine.retrieveData<T>(tableName,className);
     return data;
 }
 
+// 按指定键值查询单条记录
 template<typename T>
 T* PonyKVList<T>::extractInfo(QString key,QString value) {
     return engine.search<T>(tableName,className,key,value);
 }
 
+// 显式实例化，确保在链接时生成 PlayListItem 版本的模板实现
 template
 class PonyKVList<PlayListItem>;
