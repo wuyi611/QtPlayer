@@ -29,6 +29,7 @@ Controller::Controller(QObject *parent) : QObject(parent)
 //    connect(this, SIGNAL(removeItem(PlayListItem*)), listOPer, SLOT(remove(PlayListItem*)));
     // 搜索媒体条目
     connect(this, SIGNAL(searchItem(QString)), listOPer, SLOT(search(QString)));
+    // 已读
     // 提取并处理所有媒体库条目
     connect(this, SIGNAL(extractRequirement()), listOPer, SLOT(extractAndProcess()));
     // 删除指定路径的媒体条目

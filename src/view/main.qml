@@ -345,6 +345,7 @@ Window {
                     title: qsTr("最近打开的文件")
                     Instantiator {
                         id: recentInstantiator_
+                        // controller.h定义
                         model: mediaLibController.recentFiles
                         delegate: MenuItem {
                             text: model.modelData[0]
@@ -363,6 +364,7 @@ Window {
                 SpeedMenu{}
                 MenuItem {
                     text: (mainWindow.isInverted ? '✔' : '    ') + "倒放"
+                    // hurricane.hpp定义
                     checked: videoArea.backwardStatus
                     onTriggered: {
                         mainWindow.isInverted = (!mainWindow.isInverted)
@@ -393,6 +395,7 @@ Window {
                     title: "画面比例"
                     MenuItem {
                         text: "保持比例 "+(videoArea.keepFrameRate ? '✔' : '    ')
+                        // fireworks.hpp定义
                         checked: videoArea.keepFrameRate
                         onTriggered: {
                             videoArea.keepFrameRate = true
@@ -415,6 +418,7 @@ Window {
                     title: qsTr("输出设备")
                     Instantiator {
                         id: audioInstantiator
+                        // hurricane.hpp定义
                         model: videoArea.audioDeviceList
                         delegate: MenuItem {
                             text: (model.modelData === videoArea.currentOutputDevice ? "✔": "") + model.modelData
