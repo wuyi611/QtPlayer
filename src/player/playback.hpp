@@ -172,6 +172,7 @@ public:
         connect(this, &Playback::setAudioStartPoint, this, [this](qreal t) { this->m_audioSink->setStartPoint(t); });
         connect(this, &Playback::setAudioVolume, this, [this](qreal volume) { this->m_audioSink->setVolume(volume); });
         connect(this, &Playback::setAudioPitch, this, [this](qreal pitch) { this->m_audioSink->setPitch(pitch); });
+        // 已读
         connect(this, &Playback::setAudioSpeed, this, [this](qreal speed) {
             m_speedFactor = speed;
             this->m_audioSink->setSpeed(speed);

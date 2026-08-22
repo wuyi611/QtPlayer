@@ -62,6 +62,7 @@ Menu {
     MenuItem{
         text: (mainWindow.speed==8.0?'✔':'    ')+" 8.0倍速"
         onTriggered: {
+            // 纯音频则报错
             if(!videoArea.hasVideo()){
                 warning.show()
             }

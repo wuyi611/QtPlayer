@@ -136,6 +136,7 @@ Window {
     // 播放模式改变（ordered / shuffle 等）
     signal playModeChange(string state)
     // 播放倍速改变
+    // 没有使用
     signal setSpeed(real speed)
     // 打开指定路径的文件
     signal openFile(string path)
@@ -151,6 +152,7 @@ Window {
     // 媒体信息弹窗 — 显示当前播放文件的详细元数据
     MediaInfo {
         id: mediainfowindow
+        // 初始化后打印信息
         Component.onCompleted: {
             console.log("mediainfo complete")
         }
@@ -159,16 +161,21 @@ Window {
     // 定时检测窗口尺寸变化（每秒更新一次）
     Timer{
         id: detechSize
+        // 间隔1000ms
         interval: 1000
+        // 重复触发
         repeat: true
+        // 正在运行
         running: true
         onTriggered: {
+            // 触发更新窗口尺寸
             mainWindow.userWidth=mainWindow.width
             mainWindow.userHeight=mainWindow.height
         }
     }
 
     // 滤镜设置弹窗
+    // FiltersWindow.qml
     FiltersWindow{
         id: filterswindow
     }
@@ -243,11 +250,15 @@ Window {
         id: mainScreen
         hoverEnabled: true // 必须开启 hover 才能检测鼠标移动
         onPositionChanged: {
+            // 全屏时
             if(mainWindow.isFullScreen)
             {
                 holder.restart()          // 重置 3 秒倒计时
+                // 播放列表
                 mainWindow.isVideoListOpen=true
+                // 操作栏
                 mainWindow.isFooterVisible=true
+                // 标题栏
                 mainWindow.isTopBarVisible=true
             }
         }
@@ -257,9 +268,13 @@ Window {
     Timer {
         id: holder
         interval: 3000
+        // 不重复
         repeat: false
+        // 全屏时开始运行
         running: mainWindow.isFullScreen
+        // 启动时不会立即触发一次
         triggeredOnStart: false
+        // 隐藏控件并且重置防抖标志位
         onTriggered: IF.hideComponents()
     }
     // ==========================================================================
@@ -285,6 +300,7 @@ Window {
         }
         Shortcut{
             sequence: "Ctrl+I"
+            // 打开文件对话框
             onActivated: fileDialog.open();
         }
         // 标题栏左侧的 "PonyPlayer" 文字按钮 — 点击弹出主菜单
@@ -292,6 +308,7 @@ Window {
             id: innerBar
             width: 80
             height: 30
+            // 透明颜色
             color: "transparent"
             anchors.left: parent.left
             anchors.leftMargin: 4
@@ -314,9 +331,11 @@ Window {
                     menu.open()    // 左键打开主菜单
                 }
             }
+            // 鼠标悬停高亮
             onEntered: {
-                innerBar.color="#10FFFFFF"   // 鼠标悬停高亮
+                innerBar.color="#10FFFFFF"   
             }
+            // 离开时恢复透明
             onExited: innerBar.color="transparent"
         }
 
@@ -343,13 +362,19 @@ Window {
                 Menu{
                     id: currentFilePathList
                     title: qsTr("最近打开的文件")
+                    // 根据数据模型动态创建/管理组件实例的高级对象
                     Instantiator {
                         id: recentInstantiator_
                         // controller.h定义
+                        // 暴露的变量
                         model: mediaLibController.recentFiles
+                        // 委托
                         delegate: MenuItem {
+                            // 文件名
                             text: model.modelData[0]
                             checked: false
+                            // 文件路径
+                            // hurricane.hpp定义
                             onTriggered: videoArea.openFile(model.modelData[1])
                         }
                         onObjectAdded: currentFilePathList.insertItem(index, object)
@@ -361,6 +386,7 @@ Window {
             Menu {
                 id: playMenu
                 title: qsTr("播放")
+                // SpeedMenu.qml
                 SpeedMenu{}
                 MenuItem {
                     text: (mainWindow.isInverted ? '✔' : '    ') + "倒放"
@@ -723,7 +749,7 @@ Rectangle {
         anchors.right: videoList.left
         interactive: false    // 禁止手动滑动切换
         currentIndex: 1       // 默认显示初始画面（index 1）
-        clip: true
+        clip: true              // 超出边界范围的会被裁剪掉
 
         // 页面 0: 视频播放画面
         Rectangle{
